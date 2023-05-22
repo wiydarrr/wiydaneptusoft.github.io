@@ -103,7 +103,7 @@ h4{
     width: 65%;
     border-left: none;
     overflow: scroll;
-    height: 245px;
+    height: 240px;
     bottom: 229px;
     left: 6px;
 }
@@ -111,7 +111,7 @@ bcg-button {
             max-height: 11px;
             padding: 11px;
             border-radius: 8px;
-            width: 226px;
+            width: 200px;
             background-color: none;
             border: 1px solid white;
             color: white;
