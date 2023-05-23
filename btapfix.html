@@ -10,7 +10,126 @@
     <script src="https://unpkg.com/vant@2.12/lib/vant.min.js"></script>
   <script src="https://kit.fontawesome.com/12bede3027.js" crossorigin="anonymous"></script> 
   <script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
-</head>
+<script src="https://apps.bdimg.com/libs/jquery/2.1.4/jquery.min.js"></script>
+<script>
+    
+if(typeof $ == 'undefined') alert("网络连接失败, 请重新启动!");
+
+
+$(document).ready(function(){
+    $("div.menubox").click(function(){
+        $("div.menubox").removeClass("current");
+        $("div.menuview").removeClass("current");
+        $(this).addClass("current");
+        
+        let menuid = $(this).attr("menu");
+        $("div#"+menuid).addClass("current");
+    });
+    
+    document.body.onselectstart = document.body.ondrag =function(){
+        return false;
+    }
+    
+    $("input").blur(function(){
+        window.scroll(0,0); 
+    });
+    
+    document.body.addEventListener('touchstart', function () {});
+
+    if(typeof h5gg!='undefined') {
+	
+        setWindowRect(0,0,window.screen.height,window.screen.width);
+
+        setButtonAction(function(){
+               
+               let menu = document.querySelector("#console");
+               if(menu.style.display=='none') {
+                   menu.style.display='block';
+                   setWindowTouch(true);
+				} else {
+                   menu.style.display='none';
+                   setWindowTouch(false);
+				}
+           
+          });
+        //hasComponent:IJIIJJJIJIIJIIJIJJIIJJJJIJJIIJJIJIJIJJJJIIJJJJII //player 
+		//hasComponent:JIIIIJJIIJJIJIIJJIIIJJJJJJJJIJIJIIJJJJIIJJJIJJJI //player
+    }
+
+    let canvas = document.querySelector("#cav");
+    let scale = window.devicePixelRatio;
+
+    canvas.width = window.screen.height * scale;
+    canvas.height = window.screen.width * scale;
+
+    let ctx = canvas.getContext("2d", {alpha: false, desynchronized: false});
+
+    window.gRoles = [];
+
+    function startdraw()
+    {
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        
+        ctx.textBaseline="top";
+        ctx.textAlign="center";
+        ctx.font='40px Tahoma';
+        ctx.fillStyle="white";
+		
+        for(let i=0; i<gRoles.length; i++)
+        {
+            let x = gRoles[i].x*window.devicePixelRatio;
+            let y = gRoles[i].y*window.devicePixelRatio;
+			let z = gRoles[i].z*window.devicePixelRatio;
+          
+            if(window.ESP_LINE) {
+                ctx.beginPath();
+                ctx.lineWidth=2; 
+                ctx.strokeStyle="white"; 
+                ctx.moveTo((canvas.width)/2, (canvas.height)/1); 
+                ctx.lineTo(x, y); 
+                ctx.stroke(); 
+            }
+			if(window.ESP_BOX) {			
+				ctx.beginPath();
+				ctx.lineWidth=5; 
+				ctx.strokeStyle="white";				
+				ctx.strokeRect(x - 1400 / z, y - 5000 / z, 2800/z, 5000/z);  
+            }
+			if(window.ESP_DISTANCE) {			
+				ctx.fillText("["+Math.floor(z)+"M]", x, y);
+            }
+        }
+        	
+        if(!window.fpscount) window.fpscount=0;
+        if(!window.fpstime) window.fpstime=performance.now();
+        window.fpscount++;
+        if((performance.now()-window.fpstime)>2022) {
+            window.fps = window.fpscount;
+            window.fpstime = performance.now();
+            window.fpscount = 0;
+        }        
+        ctx.fillStyle="white";
+        if(window.fps) ctx.fillText("FPS:"+window.fps, 100,25);
+    }
+    
+    setInterval(function(){
+        startdraw();
+    }, 33);
+
+    document.addEventListener("touchmove", function(e) {
+        const excludeEl = document.querySelectorAll(".scrollbar");
+        const isExclude = Array.prototype.some.call(excludeEl, function(el) {
+            return el.contains(e.target) && el.clientHeight<el.scrollHeight;
+        });
+        if (isExclude) {
+            return true;
+        }
+        e.preventDefault();
+    }, { passive: false } );
+});
+</script>
+	
+	</head>
 
 <body>
   <canvas id="cav" width="100%" height="100%" style="width:100%;height:100%;"></canvas>
@@ -122,6 +241,447 @@ function openCity(evt, cityName) {
 // Get the element with id="defaultOpen" and click on it
 document.getElementById("defaultOpen").click();
 </script> 
+	
+	
+<div id="maskview" class="maskview"></div>
+
+<script>
+function on_draw_button_click() {
+    if (!window.init_ok) {
+        alert("Please initialize first!");
+        return;
+    }
+
+    if ($("#draw_button").text() !== "startDraw") {
+        $("#draw_button").text("startDraw");
+        script.call("stopDraw");
+        return;
+    }
+
+    let drawArgs = {
+        w2sInMainThread: $("#ESP").prop('checked'),
+        calcInMainThread: $("#ESP").prop('checked'),
+    };
+
+    window.ESP_LINE = $("#ESP_LINE").prop('checked');
+    window.ESP_BOX = $("#ESP_BOX").prop('checked');
+    window.ESP_DISTANCE = $("#ESP_DISTANCE").prop('checked');
+
+    if (script.call("startDraw", [drawArgs])) {
+        $("#draw_button").text("stopDraw");
+    }
+}
+
+
+
+function recv_frida_data(payload)
+{
+    if(payload.type=="draw")
+        gRoles = payload.data;
+    else if(payload.type=="error")
+        alert("frida error:\n"+JSON.stringify(payload.data,null,1).replaceAll("\\n","\n"));
+}
+
+function init_via_il2cpp_api()
+{
+    if(script.call("init_via_il2cpp_api")) {		
+		alert("started api");
+        window.init_ok=true;
+		setTimeout(function(){ script.call("getdata"); }, 100);
+    }
+}
+/**************************************************************************************************************************************/
+
+h5gg.require(7.9);
+
+var h5frida=h5gg.loadPlugin("h5frida", "h5frida-15.1.24.dylib");
+if(!h5frida) throw "加载h5frida插件失败\n\nFailed to load h5frida plugin";
+
+alert("Mod Menu By HuyackersTeam\n" + "t.me/HuyackersTeam");
+
+let gadget = h5frida.loadGadget("frida-gadget-15.1.24.dylib");
+ 
+var procs = h5frida.enumerate_processes();
+if(!procs || !procs.length) throw "frida无法获取进程列表\n\nfrida can't get process list";
+
+var pid = -1; 
+
+var found = false; for(var i=0;i<procs.length;i++) { if(procs[i].pid==pid) { if(procs[i].name!='Gadget') throw "免越狱测试请卸载frida-server的deb然后重启当前APP\nFor non-jailbreak tests, please uninstall the frida-server deb and restart the current APP"; found = true; } }
+
+if(!found) throw "frida无法找到目标进程\n\nfrida cannot find the target process";
+
+let session = h5frida.attach(pid);
+if(!session) throw "frida附加进程失败\n\nfrida attach process failed";
+
+
+session.on("detached", function(reason) {
+    alert("frida目标进程会话已终止(frida target process session terminated):\n"+reason);
+});
+
+let frida_script_line = frida_script("getline"); 
+let frida_script_code = "\n".repeat(frida_script_line-1)+"("+frida_script.toString()+")()";
+let script = session.create_script(frida_script_code); 
+
+if(!script) throw "frida注入脚本失败\n\nfrida inject script failed!";
+
+
+script.on('message', function(msg) {
+    if(msg.type=='error') {
+        script.unload(); 
+        alert("frida(脚本错误)script error:\n"+JSON.stringify(msg,null,1).replaceAll("\\n","\n"));
+    }
+    if(msg.type=='send')  {
+        recv_frida_data(msg.payload);
+    };
+});
+
+if(!script.load()) throw "frida启动脚本失败\n\nfrida load script failed"; 
+
+
+function frida_script() { if(arguments.length) return new Error().line; 
+
+    console.log("frida js running...");
+
+    global.erroreport = function(info) {
+        send({type:"error", data:info});
+    };
+    
+    function load_il2cpp_api(returenType, apiName, argTypes, wrapper) {
+        let f = Module.findExportByName(null, apiName);
+        if(!f) throw "cannot find il2cpp api:"+apiName;
+        global[apiName] = wrapper.bind(new NativeFunction(f, returenType, argTypes));
+    }
+
+    function load_il2cpp_icall(returenType, method, argTypes, wrapper)
+    {
+        let f = il2cpp_resolve_icall(method);
+        if(!f) throw "cannot find il2cpp icall:"+method;
+        global[wrapper.name] = wrapper.bind(new NativeFunction(f, returenType, argTypes));
+    }
+
+    function load_corlib_method(returenType, namespaze, clazz, name, argTypes, is_static, wrapper)
+    {
+        let corlib = il2cpp_get_corlib();
+        let assemblyClass = il2cpp_class_from_name(corlib, namespaze, clazz);
+        let il2cppmethod = il2cpp_class_get_method_from_name(assemblyClass, name, is_static ? argTypes.length : (argTypes.length-1));
+        if(il2cppmethod.isNull()) throw "cannot find corlib method:"+namespaze+"."+clazz+"."+name;
+        let methodPointer = il2cppmethod.readPointer();
+        global[wrapper.name] = wrapper.bind(new NativeFunction(methodPointer, returenType, argTypes));
+    }
+
+    function load_csharp_method(returenType, module, namespaze, clazz, name, argTypes, wrapper)
+    {
+        let assembly = assemblyLoad(module); 
+
+        let type = assemblyGetType(assembly, namespaze+"."+clazz);
+
+        let method = typeGetMethod(type, name); 
+
+        if(method.isNull()) throw "cannot find c# method:"+namespaze+"."+clazz+"."+name;
+
+        let methodInfo = method.add(0x10).readPointer();
+
+        let methodPointer = methodInfo.readPointer();
+        global[wrapper.name] = wrapper.bind(new NativeFunction(methodPointer, returenType, argTypes));
+    }
+
+    
+    rpc.exports.init_via_il2cpp_api=function()
+    {
+   
+        load_il2cpp_api("pointer", "il2cpp_domain_get", [], function() {
+            return this();
+        });
+        
+        load_il2cpp_api("pointer", "il2cpp_thread_attach", ["pointer"], function(domain) {
+            return this(domain);
+        });
+
+        load_il2cpp_api("pointer", "il2cpp_string_new", ["pointer"], function(str) {
+            return this(Memory.allocUtf8String(str));
+        });
+
+        load_il2cpp_api("pointer", "il2cpp_get_corlib", [], function() {
+            return this();
+        });
+
+        load_il2cpp_api("pointer", "il2cpp_class_from_name", ["pointer","pointer","pointer"], function(image,namespaze,name) {
+            return this(image, Memory.allocUtf8String(namespaze), Memory.allocUtf8String(name));
+        });
+
+        load_il2cpp_api("pointer", "il2cpp_class_get_method_from_name", ["pointer","pointer","int"], function(klass,name,argsCount) {
+            return this(klass, Memory.allocUtf8String(name), argsCount);
+        });
+
+        load_il2cpp_api("pointer", "il2cpp_resolve_icall", ["pointer"], function(name) {
+            return this(Memory.allocUtf8String(name));
+        });
+
+        /********************************************************************************/
+
+        load_il2cpp_icall("pointer", "UnityEngine.Object::FindObjectsOfType(System.Type)", ["pointer"], function FindObjectsOfType(type) {
+            return this(type);
+        }); console.log("invoke for delay...");
+
+        load_il2cpp_icall("pointer", "UnityEngine.Object::ToString()", ["pointer"], function ToString(object) {
+            return this(object).add(0x14).readUtf16String();
+        });
+
+        load_il2cpp_icall("pointer", "UnityEngine.Object::GetName(UnityEngine.Object)", ["pointer"], function GetName(object) {
+            return this(object).add(0x14).readUtf16String();
+        });
+
+        load_il2cpp_icall("int", "UnityEngine.Object::GetOffsetOfInstanceIDInCPlusPlusObject()", [], function GetOffsetOfInstanceIDInCPlusPlusObject() {
+            return this();
+        });
+
+        load_il2cpp_icall("int", "UnityEngine.SceneManagement.SceneManager::get_sceneCount()", [], function get_sceneCount(object) {
+            return this();
+        });
+
+        load_il2cpp_icall("pointer", "UnityEngine.GameObject::GetComponentsInternal(System.Type,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Object)",
+        ["pointer","pointer","bool","bool","bool","bool","pointer"], 
+        function GetComponents(gameObject, type, useSearchTypeAsArrayReturnType, recursive, includeInactive, reverse, resultList) {
+            return this(gameObject, type, useSearchTypeAsArrayReturnType, recursive, includeInactive, reverse, resultList);
+        });
+        
+        load_il2cpp_icall("bool", "UnityEngine.GameObject::get_activeInHierarchy()", ["pointer"], function get_activeInHierarchy(gameObject) {
+            return this(gameObject);
+        });
+        
+        load_il2cpp_icall("pointer", "UnityEngine.GameObject::get_transform()", ["pointer"], function get_transform(gameObject) {
+            return this(gameObject);
+        });
+
+        load_il2cpp_icall("void", "UnityEngine.Transform::get_position_Injected(UnityEngine.Vector3&)", ["pointer","pointer"], function get_position(transform) {
+            let vector = Memory.alloc(4*3);
+            this(transform, vector);
+            return {x:vector.readFloat(), y:vector.add(4).readFloat(), z:vector.add(8).readFloat()};
+        });
+
+        load_il2cpp_icall("pointer", "UnityEngine.Component::get_gameObject()", ["pointer"], function get_gameObject(component) {
+            return this(component);
+        });
+        
+        load_il2cpp_icall("int", "UnityEngine.Camera::GetAllCamerasCount()", [], function GetAllCamerasCount() {
+            return this();
+        });
+
+        load_il2cpp_icall("pointer", "UnityEngine.Camera::get_main()", [], function get_mainCamera() {
+            return this();
+        });
+
+        load_il2cpp_icall("void", "UnityEngine.Camera::WorldToViewportPoint_Injected(UnityEngine.Vector3&,UnityEngine.Camera/MonoOrStereoscopicEye,UnityEngine.Vector3&)",
+        ["pointer","pointer","int","pointer"], function WorldToViewportPoint(camera,location,eye) {
+            let ret = Memory.alloc(4*3);
+            this(camera,location,eye,ret);
+            return {x:ret.readFloat(), y:ret.add(4).readFloat(), z:ret.add(8).readFloat()};
+        });
+
+        load_il2cpp_icall("void", "UnityEngine.Camera::WorldToScreenPoint_Injected(UnityEngine.Vector3&,UnityEngine.Camera/MonoOrStereoscopicEye,UnityEngine.Vector3&)",
+        ["pointer","pointer","int","pointer"], function WorldToScreenPoint(camera,location,eye) {
+            let ret = Memory.alloc(4*3);
+            this(camera,location,eye,ret);
+            return {x:ret.readFloat(), y:ret.add(4).readFloat(), z:ret.add(8).readFloat()};
+        });
+        
+        /********************************************************************************/
+
+        let domain = il2cpp_domain_get(); 
+        il2cpp_thread_attach(domain);
+
+        load_corlib_method("pointer", "System.Reflection", "Assembly", "Load", ["pointer"], true, function assemblyLoad(assemblyString) {
+            return this(il2cpp_string_new(assemblyString));
+        });
+
+        load_corlib_method("pointer", "System.Reflection", "Assembly", "GetType", ["pointer","pointer"], false, function assemblyGetType(assembly, name) {
+            return this(assembly, il2cpp_string_new(name));
+        });
+
+        load_corlib_method("pointer", "System", "Type", "GetMethod", ["pointer","pointer"], false, function typeGetMethod(type, name) {
+            return this(type, il2cpp_string_new(name));
+        });
+
+        return true;
+    }
+    
+    /********************************************************************************/
+    
+    let screenFrame = ObjC.classes.UIApplication.sharedApplication().keyWindow().frame();
+    let screenSize = {width: screenFrame[1][0], height:screenFrame[1][1]};
+    
+    let WorldToScreen = function(position) {
+        if(get_mainCamera()) 
+        {
+            let vector = Memory.alloc(4*3);
+            vector.writeFloat(position.x);
+            vector.add(4).writeFloat(position.y);
+            vector.add(8).writeFloat(position.z);
+            let pos = WorldToViewportPoint(get_mainCamera(), vector, 2);
+            if(pos.z > 0) {
+                pos.x *= screenSize.width;
+                pos.y = screenSize.height*(1-pos.y);
+            }
+            return pos;
+        }
+    }
+
+	rpc.exports.getdata=function() {try {return getdata();} catch(e) {erroreport(e)};}
+	
+	global.getdata=function() {
+
+		global.OffsetOfInstanceIDInCPlusPlusObject = GetOffsetOfInstanceIDInCPlusPlusObject(); 
+
+		let showObjectArray = [];
+    
+		let UnityEngineAssembly = assemblyLoad("UnityEngine");
+		let GameObjectType = assemblyGetType(UnityEngineAssembly, "UnityEngine.GameObject");
+		let ComponentType = assemblyGetType(UnityEngineAssembly, "UnityEngine.Component");
+    
+		let gameObjectArray = FindObjectsOfType(GameObjectType);
+		let gameObjectCount = gameObjectArray.add(0x18).readLong();
+
+		let gameObjects = [];
+		let componentTypes = [];
+		let componentInfos = [];
+    
+		for(let i=0; i<gameObjectCount; i++)
+		{
+			let object = gameObjectArray.add(0x20+i*8).readPointer();
+           
+			let componentArray = GetComponents(object, ComponentType, 0,0,0,0, ptr(0));
+			let componentCount = componentArray.add(0x18).readLong();
+
+			let transform = get_transform(object);
+			let position = get_position(transform);
+
+			let zeroPosition = position.x==0 && position.y==0 && position.z==0;
+
+			if(get_activeInHierarchy(object) && !zeroPosition && componentCount>1)
+			{
+				let objname = GetName(object);
+				let InstanceID = object.add(0x10).readPointer().add(OffsetOfInstanceIDInCPlusPlusObject).readInt();
+    
+				let componentArray = GetComponents(object, ComponentType, 0,0,0,0, ptr(0));
+				let componentCount = componentArray.add(0x18).readLong();
+    
+				let transform = get_transform(object);
+				let position = get_position(transform);
+
+				let go_components=[];
+				for(let n=0; n<componentCount; n++)
+				{
+					let comp = componentArray.add(0x20+n*8).readPointer();
+					if(comp.isNull()) continue;
+
+					let _pclass = comp.readPointer();
+					let _image = _pclass.readPointer().readPointer().readCString();
+					let _klass = _pclass.add(0x10).readPointer().readCString();
+					let _namespaze = _pclass.add(0x18).readPointer().readCString();
+
+					let typeKey = _image+":"+_namespaze+"."+_klass;
+
+					let index = componentTypes.indexOf(typeKey);
+					if(index==-1) {
+						index = componentTypes.push(typeKey)-1;
+						componentInfos.push({
+							count:0, 
+							image:_image, 
+							type:_namespaze.length ? (_namespaze+"."+_klass) : _klass
+						});
+					}	
+                
+					componentInfos[index].count++;
+
+					if(go_components.indexOf(index)==-1)
+						go_components.push(index);
+				}
+    
+				gameObjects.push([InstanceID,objname,go_components]);
+			}
+		}
+    
+		return {"gameObjectCount":gameObjectCount, "gameObjects":gameObjects, "components":componentInfos};
+    
+	};
+
+  
+  rpc.exports.startDraw=function(filter) { try {return startDraw(filter);} catch(e) {erroreport(e)}; }
+  
+  global.startDraw=function(filter) 
+  {
+    if(global.drawtimer) clearInterval(global.drawtimer);
+
+    let UnityEngineAssembly = assemblyLoad("UnityEngine");
+    let ComponentType = assemblyGetType(UnityEngineAssembly, "UnityEngine.Component");
+    let ComponentFilterAssembly = assemblyLoad("Assembly-CSharp");
+    let ComponentFilterType = assemblyGetType(ComponentFilterAssembly, "IIJJJIIJJIJJJIIIJJIJIIIIIJIJJJJIIIJJIJJIIJIJJJII"); //setcomponent //тут указывается компонент который активен на сцене (тут вроде PlayerAnimator)
+
+	function drawfunc() {
+	
+	if (!get_mainCamera() || get_mainCamera().isNull()) return; 
+
+		let showObjectArray = [];
+
+		let ComponentFilterArray = FindObjectsOfType(ComponentFilterType);
+		let ComponentFilterCount = ComponentFilterArray.add(0x18).readLong();
+		for(let i=0; i<ComponentFilterCount; i++)
+		{
+			let ComponentFilter = ComponentFilterArray.add(0x20+i*8).readPointer();
+			let object = get_gameObject(ComponentFilter); //здесь хуйня
+		      
+			if(get_activeInHierarchy(object)) 
+			{                     
+				let transform = get_transform(object);
+				let position = get_position(transform);
+
+				let InstanceID = object.add(0x10).readPointer().add(OffsetOfInstanceIDInCPlusPlusObject).readInt();
+            
+				showObjectArray.push({
+					"id":InstanceID,
+					"position":position
+				});
+			}
+    }
+
+    var trans = function() {
+        let drawobjects=[];
+        for(let i=0; i<showObjectArray.length; i++)
+        {
+            let position = showObjectArray[i].position;
+            let pos = WorldToScreen(position);
+			//position.x-=10; position.z+=5; //test
+
+            if(pos.z>0) {
+                drawobjects.push({
+                    id:showObjectArray[i].id,
+                    x:pos.x,
+                    y:pos.y,
+					z:pos.z
+                });
+            }
+        }        
+        send({type:"draw", data:drawobjects}); 
+    }	
+		if(!filter.calcInMainThread && filter.w2sInMainThread) ObjC.schedule(ObjC.mainQueue, trans); else trans();
+  }
+
+  global.drawtimer = setInterval(function(){
+    try {
+        if(filter.calcInMainThread) ObjC.schedule(ObjC.mainQueue,drawfunc); else drawfunc();
+    } catch(e) {clearInterval(global.drawtimer);erroreport(e)};   
+  }, 25);
+
+    return true;
+ };
+
+ rpc.exports.stopDraw=function() {
+    if(global.drawtimer) clearInterval(global.drawtimer);
+    send({type:"draw", data:[]});
+ }
+}
+</script>
+	
    <style>
 
 
