@@ -40,18 +40,19 @@ $(document).ready(function(){
 	
         setWindowRect(0,0,window.screen.height,window.screen.width);
 
-        setButtonAction(function(){
-               
-               let menu = document.querySelector("#console");
-               if(menu.style.display=='none') {
-                   menu.style.display='block';
-                   setWindowTouch(true);
-				} else {
-                   menu.style.display='none';
-                   setWindowTouch(false);
-				}
-           
-          });
+	setButtonAction(function(){
+	    let menu = document.querySelector("#console");
+	    if (menu) {
+		if (menu.style.display == 'none') {
+		    menu.style.display = 'block';
+		    setWindowTouch(true);
+		} else {
+		    menu.style.display = 'none';
+		    setWindowTouch(false);
+		}
+	    }
+	});
+
         //hasComponent:IJIIJJJIJIIJIIJIJJIIJJJJIJJIIJJIJIJIJJJJIIJJJJII //player 
 		//hasComponent:JIIIIJJIIJJIJIIJJIIIJJJJJJJJIJIJIIJJJJIIJJJIJJJI //player
     }
